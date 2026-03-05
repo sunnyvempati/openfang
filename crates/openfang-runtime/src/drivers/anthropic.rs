@@ -30,6 +30,15 @@ impl AnthropicDriver {
             client: reqwest::Client::new(),
         }
     }
+
+    fn apply_auth(&self, builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        let key = self.api_key.as_str();
+        if key.starts_with("sk-ant-") {
+            builder.header("x-api-key", key)
+        } else {
+            builder.header("Authorization", format!("Bearer {}", key))
+        }
+    }
 }
 
 /// Anthropic Messages API request body.
@@ -202,9 +211,7 @@ impl LlmDriver for AnthropicDriver {
             debug!(url = %url, attempt, "Sending Anthropic API request");
 
             let resp = self
-                .client
-                .post(&url)
-                .header("x-api-key", self.api_key.as_str())
+                .apply_auth(self.client.post(&url))
                 .header("anthropic-version", "2023-06-01")
                 .header("content-type", "application/json")
                 .json(&api_request)
@@ -309,9 +316,7 @@ impl LlmDriver for AnthropicDriver {
             debug!(url = %url, attempt, "Sending Anthropic streaming request");
 
             let resp = self
-                .client
-                .post(&url)
-                .header("x-api-key", self.api_key.as_str())
+                .apply_auth(self.client.post(&url))
                 .header("anthropic-version", "2023-06-01")
                 .header("content-type", "application/json")
                 .json(&api_request)
