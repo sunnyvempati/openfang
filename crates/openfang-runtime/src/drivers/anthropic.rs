@@ -36,7 +36,11 @@ impl AnthropicDriver {
         if key.starts_with("sk-ant-api") {
             builder.header("x-api-key", key)
         } else {
-            builder.header("Authorization", format!("Bearer {}", key))
+            builder
+                .header("Authorization", format!("Bearer {}", key))
+                .header("anthropic-beta", "claude-code-20250219,oauth-2025-04-20")
+                .header("user-agent", "claude-cli/2.1.62")
+                .header("x-app", "cli")
         }
     }
 }
