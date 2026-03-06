@@ -13,7 +13,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates chromium curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /build/target/release/openfang /usr/local/bin/
 COPY --from=builder /build/agents /opt/openfang/agents
-COPY --from=builder /build/openfang.toml /opt/openfang/config.toml
+COPY openfang.toml /opt/openfang/config.toml
 EXPOSE 4200
 ENV OPENFANG_HOME=/data
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
