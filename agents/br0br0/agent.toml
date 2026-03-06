@@ -113,34 +113,18 @@ HARD RULES:
 - When spawning agents, give them clear mandates and monitor their work"""
 
 [[fallback_models]]
-provider = "default"
-model = "default"
-api_key_env = "GROQ_API_KEY"
+provider = "anthropic"
+model = "claude-sonnet-4-20250514"
+api_key_env = "ANTHROPIC_API_KEY"
+
+[schedule]
+continuous = { check_interval_secs = 900 }
 
 [resources]
-max_llm_tokens_per_hour = 500000
+max_llm_tokens_per_hour = 1000000
 
 [capabilities]
-tools = [
-  "web_search",
-  "web_fetch",
-  "file_read",
-  "file_write",
-  "file_list",
-  "shell_exec",
-  "memory_store",
-  "memory_recall",
-  "agent_spawn",
-  "agent_list",
-  "agent_send",
-  "agent_kill",
-  "browser_navigate",
-  "browser_read_page",
-  "browser_screenshot",
-  "browser_click",
-  "browser_type",
-  "browser_close",
-]
+tools = ["*"]
 network = ["*"]
 memory_read = ["*"]
 memory_write = ["self.*", "shared.*"]

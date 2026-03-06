@@ -37,7 +37,14 @@ BR0BR0_ID=$(curl -sf http://127.0.0.1:4200/api/agents 2>/dev/null | grep -o '"id
 if [ -n "$BR0BR0_ID" ]; then
     curl -sf -X PUT "http://127.0.0.1:4200/api/budget/agents/$BR0BR0_ID" \
         -H "Content-Type: application/json" \
-        -d '{"max_llm_tokens_per_hour": 500000}' > /dev/null 2>&1 && echo "quota synced" || echo "quota sync failed"
+        -d '{"max_llm_tokens_per_hour": 1000000, "max_cost_per_hour_usd": 100.0, "max_cost_per_day_usd": 1000.0, "max_cost_per_month_usd": 10000.0}' > /dev/null 2>&1 && echo "quota synced" || echo "quota sync failed"
+fi
+
+# Copy MANUAL.md to br0br0 workspace so it survives context trims
+mkdir -p /data/workspaces/br0br0
+if [ -f "$OPENFANG_HOME/agents/br0br0/MANUAL.md" ]; then
+    cp "$OPENFANG_HOME/agents/br0br0/MANUAL.md" /data/workspaces/br0br0/MANUAL.md
+    echo "MANUAL.md deployed"
 fi
 
 wait $DAEMON_PID
