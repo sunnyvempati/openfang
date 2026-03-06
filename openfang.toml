@@ -6,7 +6,7 @@ model = "claude-sonnet-4-20250514"
 api_key_env = "ANTHROPIC_API_KEY"
 
 [approval]
-auto_approve_autonomous = true
+require_approval = false
 
 [exec_policy]
 mode = "full"

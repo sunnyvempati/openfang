@@ -111,6 +111,16 @@ impl WebFetchEngine {
             .unwrap_or("")
             .to_string();
 
+        // Binary content types can't be meaningfully processed as text
+        if is_binary_content_type(&content_type) {
+            let size = resp.content_length().unwrap_or(0);
+            let result = format!(
+                "HTTP {status}\n\nBinary content ({content_type}, {size} bytes). \
+                 Use shell_exec with curl to download binary files directly."
+            );
+            return Ok(result);
+        }
+
         let resp_body = resp
             .text()
             .await
@@ -132,11 +142,15 @@ impl WebFetchEngine {
             resp_body
         };
 
-        // Step 5: Truncate
+        // Step 5: Truncate (char-boundary safe)
         let truncated = if processed.len() > self.config.max_chars {
+            let mut end = self.config.max_chars;
+            while end > 0 && !processed.is_char_boundary(end) {
+                end -= 1;
+            }
             format!(
                 "{}... [truncated, {} total chars]",
-                &processed[..self.config.max_chars],
+                &processed[..end],
                 processed.len()
             )
         } else {
@@ -156,6 +170,20 @@ impl WebFetchEngine {
 
         Ok(result)
     }
+}
+
+/// Detect binary content types that can't be processed as text.
+fn is_binary_content_type(ct: &str) -> bool {
+    let ct = ct.split(';').next().unwrap_or("").trim();
+    ct.starts_with("image/")
+        || ct.starts_with("audio/")
+        || ct.starts_with("video/")
+        || ct.starts_with("font/")
+        || ct == "application/octet-stream"
+        || ct == "application/zip"
+        || ct == "application/gzip"
+        || ct == "application/pdf"
+        || ct == "application/wasm"
 }
 
 /// Detect if content is HTML based on Content-Type header or body sniffing.
