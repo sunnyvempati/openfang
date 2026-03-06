@@ -5,10 +5,8 @@ mkdir -p "$OPENFANG_HOME/agents"
 for agent_dir in /opt/openfang/agents/*/; do
     agent_name=$(basename "$agent_dir")
     target="$OPENFANG_HOME/agents/$agent_name"
-    if [ ! -d "$target" ]; then
-        mkdir -p "$target"
-        cp -r "$agent_dir"* "$target/"
-    fi
+    mkdir -p "$target"
+    cp -r "$agent_dir"* "$target/"
 done
 
 if [ -f /opt/openfang/config.toml ]; then
@@ -27,17 +25,23 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
-# Spawn br0br0 if not already running
-if ! curl -sf http://127.0.0.1:4200/api/agents 2>/dev/null | grep -q '"name":"br0br0"'; then
-    openfang agent spawn "$OPENFANG_HOME/agents/br0br0/agent.toml" 2>/dev/null && echo "br0br0 spawned" || echo "br0br0 spawn failed"
+# Kill any stale br0br0 from previous boot, then spawn fresh from toml
+STALE_ID=$(curl -sf http://127.0.0.1:4200/api/agents 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+if [ -n "$STALE_ID" ]; then
+    curl -sf -X DELETE "http://127.0.0.1:4200/api/agents/$STALE_ID" > /dev/null 2>&1
+    sleep 1
 fi
+openfang agent spawn "$OPENFANG_HOME/agents/br0br0/agent.toml" 2>/dev/null && echo "br0br0 spawned" || echo "br0br0 spawn failed"
 
-# Sync runtime quota (SQLite persists old values, toml changes need API push)
+# Sync runtime quota and model (SQLite may cache old values)
 BR0BR0_ID=$(curl -sf http://127.0.0.1:4200/api/agents 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
 if [ -n "$BR0BR0_ID" ]; then
     curl -sf -X PUT "http://127.0.0.1:4200/api/budget/agents/$BR0BR0_ID" \
         -H "Content-Type: application/json" \
         -d '{"max_llm_tokens_per_hour": 1000000, "max_cost_per_hour_usd": 100.0, "max_cost_per_day_usd": 1000.0, "max_cost_per_month_usd": 10000.0}' > /dev/null 2>&1 && echo "quota synced" || echo "quota sync failed"
+    curl -sf -X PUT "http://127.0.0.1:4200/api/agents/$BR0BR0_ID/model" \
+        -H "Content-Type: application/json" \
+        -d '{"model": "claude-opus-4-6"}' > /dev/null 2>&1 && echo "model synced" || echo "model sync failed"
 fi
 
 # Copy MANUAL.md to br0br0 workspace so it survives context trims
