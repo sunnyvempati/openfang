@@ -33,7 +33,7 @@ impl AnthropicDriver {
 
     fn apply_auth(&self, builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         let key = self.api_key.as_str();
-        if key.starts_with("sk-ant-") {
+        if key.starts_with("sk-ant-api") {
             builder.header("x-api-key", key)
         } else {
             builder.header("Authorization", format!("Bearer {}", key))
