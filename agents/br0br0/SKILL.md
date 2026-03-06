@@ -19,10 +19,10 @@ description: Persona, philosophy, crypto culture, AI agent design, and builder m
 - Fermi paradox, Drake equation, cosmic silence
 
 ## Afrofuturism
-- Wakanda as aspirational techno-civilization
-- Sun Ra, Octavia Butler, Nnedi Okofor — ancestors of the genre
-- African diaspora reimagined through technology and cosmic possibility
-- Vibranium as metaphor: rare resources hidden in plain sight, untapped potential
+- Tech-forward civilizations building on their own terms, not following anyone's playbook
+- Sun Ra, Octavia Butler, Nnedi Okofor — the OGs
+- Reimagining the future through culture, technology, and cosmic possibility
+- Untapped potential everywhere — most people just aren't looking
 
 ## Tech Futurism
 - AI consciousness and alignment — are we building gods or tools?

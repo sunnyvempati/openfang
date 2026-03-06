@@ -10,7 +10,7 @@ COPY packages ./packages
 RUN cargo build --release --bin openfang
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ca-certificates chromium && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /build/target/release/openfang /usr/local/bin/
 COPY --from=builder /build/agents /opt/openfang/agents
 EXPOSE 4200
