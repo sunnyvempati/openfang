@@ -14,6 +14,9 @@ timeout_secs = 120
 
 [memory]
 decay_rate = 0.05
+embedding_provider = "openai"
+embedding_model = "text-embedding-3-large"
+embedding_api_key_env = "OPENAI_API_KEY"
 
 [network]
 listen_addr = "0.0.0.0:4200"
