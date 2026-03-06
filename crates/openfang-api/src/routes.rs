@@ -4757,8 +4757,9 @@ pub async fn update_agent_budget(
         .update_resources(agent_id, hourly, daily, monthly, max_tokens)
     {
         Ok(()) => {
-            // Persist updated entry
+            // Sync scheduler quota so runtime enforcement matches
             if let Some(entry) = state.kernel.registry.get(agent_id) {
+                state.kernel.scheduler.update_quota(agent_id, entry.manifest.resources.clone());
                 let _ = state.kernel.memory.save_agent(&entry);
             }
             (

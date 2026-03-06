@@ -100,6 +100,11 @@ impl AgentScheduler {
         Ok(())
     }
 
+    /// Update an agent's resource quota at runtime.
+    pub fn update_quota(&self, agent_id: AgentId, quota: ResourceQuota) {
+        self.quotas.insert(agent_id, quota);
+    }
+
     /// Abort an agent's active task.
     pub fn abort_task(&self, agent_id: AgentId) {
         if let Some((_, handle)) = self.tasks.remove(&agent_id) {

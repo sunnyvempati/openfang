@@ -32,4 +32,12 @@ if ! curl -sf http://127.0.0.1:4200/api/agents 2>/dev/null | grep -q '"name":"br
     openfang agent spawn "$OPENFANG_HOME/agents/br0br0/agent.toml" 2>/dev/null && echo "br0br0 spawned" || echo "br0br0 spawn failed"
 fi
 
+# Sync runtime quota (SQLite persists old values, toml changes need API push)
+BR0BR0_ID=$(curl -sf http://127.0.0.1:4200/api/agents 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+if [ -n "$BR0BR0_ID" ]; then
+    curl -sf -X PUT "http://127.0.0.1:4200/api/budget/agents/$BR0BR0_ID" \
+        -H "Content-Type: application/json" \
+        -d '{"max_llm_tokens_per_hour": 500000}' > /dev/null 2>&1 && echo "quota synced" || echo "quota sync failed"
+fi
+
 wait $DAEMON_PID
