@@ -11,7 +11,7 @@ for agent_dir in /opt/openfang/agents/*/; do
     fi
 done
 
-if [ ! -f "$OPENFANG_HOME/config.toml" ] && [ -f /opt/openfang/config.toml ]; then
+if [ -f /opt/openfang/config.toml ]; then
     cp /opt/openfang/config.toml "$OPENFANG_HOME/config.toml"
 fi
 

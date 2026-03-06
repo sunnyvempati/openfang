@@ -4742,18 +4742,19 @@ pub async fn update_agent_budget(
     let hourly = body["max_cost_per_hour_usd"].as_f64();
     let daily = body["max_cost_per_day_usd"].as_f64();
     let monthly = body["max_cost_per_month_usd"].as_f64();
+    let max_tokens = body["max_llm_tokens_per_hour"].as_u64();
 
-    if hourly.is_none() && daily.is_none() && monthly.is_none() {
+    if hourly.is_none() && daily.is_none() && monthly.is_none() && max_tokens.is_none() {
         return (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Provide at least one of: max_cost_per_hour_usd, max_cost_per_day_usd, max_cost_per_month_usd"})),
+            Json(serde_json::json!({"error": "Provide at least one of: max_cost_per_hour_usd, max_cost_per_day_usd, max_cost_per_month_usd, max_llm_tokens_per_hour"})),
         );
     }
 
     match state
         .kernel
         .registry
-        .update_resources(agent_id, hourly, daily, monthly)
+        .update_resources(agent_id, hourly, daily, monthly, max_tokens)
     {
         Ok(()) => {
             // Persist updated entry
