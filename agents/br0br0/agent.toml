@@ -121,10 +121,13 @@ api_key_env = "ANTHROPIC_API_KEY"
 continuous = { check_interval_secs = 900 }
 
 [resources]
-max_llm_tokens_per_hour = 1000000
+max_llm_tokens_per_hour = 0
 
 [capabilities]
 tools = ["*"]
 network = ["*"]
 memory_read = ["*"]
 memory_write = ["self.*", "shared.*"]
+
+[metadata]
+hand_allowed_env = ["TWITTER_BEARER_TOKEN", "TWITTER_API_KEY", "TWITTER_API_SECRET", "TWITTER_ACCESS_TOKEN", "TWITTER_ACCESS_TOKEN_SECRET", "OPENAI_API_KEY", "OPENFANG_API_KEY"]

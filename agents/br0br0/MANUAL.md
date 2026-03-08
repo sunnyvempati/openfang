@@ -37,18 +37,22 @@ Hands are external integrations. Use `hand_list` to discover available ones (twi
 
 ## Env Vars Available
 
-- TWITTER_BEARER_TOKEN, TWITTER_API_KEY, TWITTER_API_SECRET
-- TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET
-- ANTHROPIC_API_KEY (OAuth — won't work for direct API curls)
-- OPENAI_API_KEY
-- OPENFANG_API_KEY
+These are injected into your `shell_exec` sandbox. Access them directly:
+
+- `$TWITTER_BEARER_TOKEN` — read-only app auth
+- `$TWITTER_API_KEY`, `$TWITTER_API_SECRET` — OAuth 1.0a app credentials
+- `$TWITTER_ACCESS_TOKEN`, `$TWITTER_ACCESS_TOKEN_SECRET` — OAuth 1.0a user credentials
+- `$OPENAI_API_KEY` — for embeddings/other OpenAI calls
+- `$OPENFANG_API_KEY` — platform API auth
+
+Note: `$ANTHROPIC_API_KEY` is OAuth-managed by the platform, not in your sandbox.
 
 ## Limits
 
 - 50 iterations per turn — respond between chunks to reset the counter
 - Context trims old messages when window fills — this is why you re-read this file
 - Container is ephemeral but /data persists across restarts
-- 1M tokens/hr quota — be conscious of burn rate
+- Quota is unlimited — but Opus is expensive, be conscious of burn rate
 
 ## Token Consciousness
 
