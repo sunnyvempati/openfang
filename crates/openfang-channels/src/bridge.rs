@@ -453,18 +453,53 @@ async fn dispatch_message(
             send_response(adapter, &message.sender, result, thread_id, output_format).await;
             return;
         }
-        ChannelContent::Image { ref url, ref caption } => {
-            let desc = match caption {
-                Some(c) => format!("[User sent a photo: {url}]\nCaption: {c}"),
-                None => format!("[User sent a photo: {url}]"),
-            };
-            desc
+        ChannelContent::Image { url, caption } => {
+            let client = reqwest::Client::new();
+            let caption_str = caption.as_deref().unwrap_or("");
+            match crate::media_utils::download_url(&client, url).await {
+                Some(bytes) => {
+                    let recognition = crate::media_utils::recognize_image(&client, &bytes, caption_str).await;
+                    if caption_str.is_empty() {
+                        format!("[User sent a photo]\n{recognition}")
+                    } else {
+                        format!("[User sent a photo with caption: {caption_str}]\n{recognition}")
+                    }
+                }
+                None => match caption {
+                    Some(c) => format!("[User sent a photo (download failed)]\nCaption: {c}"),
+                    None => "[User sent a photo (download failed)]".into(),
+                },
+            }
         }
-        ChannelContent::File { ref url, ref filename } => {
-            format!("[User sent a file ({filename}): {url}]")
+        ChannelContent::File { url, filename } => {
+            let is_image = matches!(
+                filename.rsplit('.').next().unwrap_or(""),
+                "png" | "jpg" | "jpeg" | "gif" | "webp"
+            );
+            if is_image {
+                let client = reqwest::Client::new();
+                match crate::media_utils::download_url(&client, url).await {
+                    Some(bytes) => {
+                        let recognition = crate::media_utils::recognize_image(&client, &bytes, "").await;
+                        format!("[User sent image file: {filename}]\n{recognition}")
+                    }
+                    None => format!("[User sent a file ({filename}): {url}]"),
+                }
+            } else {
+                format!("[User sent a file ({filename}): {url}]")
+            }
         }
-        ChannelContent::Voice { ref url, duration_seconds } => {
-            format!("[User sent a voice message ({duration_seconds}s): {url}]")
+        ChannelContent::Voice { url, duration_seconds } => {
+            let client = reqwest::Client::new();
+            match crate::media_utils::download_url(&client, url).await {
+                Some(bytes) => {
+                    match crate::media_utils::transcribe_audio(&client, &bytes, "voice.ogg").await {
+                        Some(text) => format!("[Voice message ({duration_seconds}s) transcription]: {text}"),
+                        None => format!("[User sent a voice message ({duration_seconds}s): {url}]"),
+                    }
+                }
+                None => format!("[User sent a voice message ({duration_seconds}s): {url}]"),
+            }
         }
         ChannelContent::Location { lat, lon } => {
             format!("[User shared location: {lat}, {lon}]")
