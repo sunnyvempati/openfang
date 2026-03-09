@@ -1,44 +1,49 @@
 use std::time::Duration;
 use tracing::{info, warn};
 
-/// Recognize image content via Gemini Vision. Returns text description or bracketed error.
+/// Recognize image content via Anthropic Claude Vision. Returns text description or bracketed error.
 pub async fn recognize_image(
     client: &reqwest::Client,
     image_data: &[u8],
     prompt: &str,
 ) -> String {
-    let gemini_key = match std::env::var("GEMINI_API_KEY") {
+    let api_key = match std::env::var("ANTHROPIC_API_KEY") {
         Ok(k) => k,
         Err(_) => {
-            warn!("GEMINI_API_KEY not set, cannot recognize image");
-            return "[Image recognition unavailable: GEMINI_API_KEY not configured]".into();
+            warn!("ANTHROPIC_API_KEY not set, cannot recognize image");
+            return "[Image recognition unavailable: ANTHROPIC_API_KEY not configured]".into();
         }
     };
 
     let mime = detect_image_mime(image_data);
     let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, image_data);
     let prompt = if prompt.is_empty() { "Describe this image in detail." } else { prompt };
-
-    let model = std::env::var("VISION_MODEL").unwrap_or_else(|_| "gemini-2.5-flash".into());
-    let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
-    );
+    let model = std::env::var("VISION_MODEL").unwrap_or_else(|_| "claude-sonnet-4-20250514".into());
 
     let payload = serde_json::json!({
-        "contents": [{"parts": [
-            {"text": prompt},
-            {"inline_data": {"mime_type": mime, "data": b64}}
-        ]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048}
+        "model": model,
+        "max_tokens": 1024,
+        "messages": [{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
+            {"type": "text", "text": prompt}
+        ]}]
     });
 
-    let resp = match client
-        .post(&url)
-        .json(&payload)
-        .timeout(Duration::from_secs(60))
-        .send()
-        .await
-    {
+    let mut req = client
+        .post("https://api.anthropic.com/v1/messages")
+        .header("anthropic-version", "2023-06-01")
+        .header("content-type", "application/json");
+
+    req = if api_key.starts_with("sk-ant-api") {
+        req.header("x-api-key", &api_key)
+    } else {
+        req.header("Authorization", format!("Bearer {}", api_key))
+            .header("anthropic-beta", "claude-code-20250219,oauth-2025-04-20")
+            .header("user-agent", "claude-cli/2.1.62")
+            .header("x-app", "cli")
+    };
+
+    let resp = match req.json(&payload).timeout(Duration::from_secs(60)).send().await {
         Ok(r) => r,
         Err(e) => return format!("[Image recognition failed: {e}]"),
     };
@@ -46,18 +51,16 @@ pub async fn recognize_image(
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
-        warn!("Gemini Vision error [{status}]: {}", &body[..body.len().min(200)]);
+        warn!("Anthropic Vision error [{status}]: {}", &body[..body.len().min(200)]);
         return format!("[Image recognition failed: HTTP {status}]");
     }
 
     match resp.json::<serde_json::Value>().await {
         Ok(result) => {
-            let text: String = result["candidates"]
+            let text: String = result["content"]
                 .as_array()
-                .and_then(|c| c.first())
-                .and_then(|c| c["content"]["parts"].as_array())
-                .map(|parts| {
-                    parts.iter().filter_map(|p| p["text"].as_str()).collect::<Vec<_>>().join(" ")
+                .map(|blocks| {
+                    blocks.iter().filter_map(|b| b["text"].as_str()).collect::<Vec<_>>().join(" ")
                 })
                 .unwrap_or_default();
 
