@@ -100,7 +100,7 @@ pub async fn create_sandbox(
     let container_name = sanitize_container_name(&format!(
         "{}-{}",
         config.container_prefix,
-        &agent_id[..agent_id.len().min(8)]
+        crate::str_utils::safe_truncate_str(agent_id, 8)
     ))?;
 
     let mut cmd = tokio::process::Command::new("docker");
@@ -201,21 +201,23 @@ pub async fn exec_in_sandbox(
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     let exit_code = output.status.code().unwrap_or(-1);
 
-    // Truncate large outputs
+    // Truncate large outputs (char-boundary safe to avoid UTF-8 panics)
     let max_output = 50_000;
     let stdout = if stdout.len() > max_output {
+        let safe_end = crate::str_utils::safe_truncate_str(&stdout, max_output);
         format!(
             "{}... [truncated, {} total bytes]",
-            &stdout[..max_output],
+            safe_end,
             stdout.len()
         )
     } else {
         stdout
     };
     let stderr = if stderr.len() > max_output {
+        let safe_end = crate::str_utils::safe_truncate_str(&stderr, max_output);
         format!(
             "{}... [truncated, {} total bytes]",
-            &stderr[..max_output],
+            safe_end,
             stderr.len()
         )
     } else {

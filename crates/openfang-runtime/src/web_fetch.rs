@@ -4,6 +4,7 @@
 //! Pipeline: SSRF check → cache lookup → HTTP GET → detect HTML →
 //! html_to_markdown() → truncate → wrap_external_content() → cache → return
 
+use crate::str_utils::safe_truncate_str;
 use crate::web_cache::WebCache;
 use crate::web_content::{html_to_markdown, wrap_external_content};
 use openfang_types::config::WebFetchConfig;
@@ -23,6 +24,9 @@ impl WebFetchEngine {
     pub fn new(config: WebFetchConfig, cache: Arc<WebCache>) -> Self {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(config.timeout_secs))
+            .gzip(true)
+            .deflate(true)
+            .brotli(true)
             .build()
             .unwrap_or_default();
         Self {
@@ -111,16 +115,6 @@ impl WebFetchEngine {
             .unwrap_or("")
             .to_string();
 
-        // Binary content types can't be meaningfully processed as text
-        if is_binary_content_type(&content_type) {
-            let size = resp.content_length().unwrap_or(0);
-            let result = format!(
-                "HTTP {status}\n\nBinary content ({content_type}, {size} bytes). \
-                 Use shell_exec with curl to download binary files directly."
-            );
-            return Ok(result);
-        }
-
         let resp_body = resp
             .text()
             .await
@@ -142,15 +136,11 @@ impl WebFetchEngine {
             resp_body
         };
 
-        // Step 5: Truncate (char-boundary safe)
+        // Step 5: Truncate (char-boundary-safe to avoid panics on multi-byte UTF-8)
         let truncated = if processed.len() > self.config.max_chars {
-            let mut end = self.config.max_chars;
-            while end > 0 && !processed.is_char_boundary(end) {
-                end -= 1;
-            }
             format!(
                 "{}... [truncated, {} total chars]",
-                &processed[..end],
+                safe_truncate_str(&processed, self.config.max_chars),
                 processed.len()
             )
         } else {
@@ -170,20 +160,6 @@ impl WebFetchEngine {
 
         Ok(result)
     }
-}
-
-/// Detect binary content types that can't be processed as text.
-fn is_binary_content_type(ct: &str) -> bool {
-    let ct = ct.split(';').next().unwrap_or("").trim();
-    ct.starts_with("image/")
-        || ct.starts_with("audio/")
-        || ct.starts_with("video/")
-        || ct.starts_with("font/")
-        || ct == "application/octet-stream"
-        || ct == "application/zip"
-        || ct == "application/gzip"
-        || ct == "application/pdf"
-        || ct == "application/wasm"
 }
 
 /// Detect if content is HTML based on Content-Type header or body sniffing.
@@ -305,6 +281,28 @@ fn extract_host(url: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::str_utils::safe_truncate_str;
+
+    #[test]
+    fn test_truncate_multibyte_no_panic() {
+        // Simulate a gzip-decoded response containing multi-byte UTF-8
+        // (Chinese, Japanese, emoji — common on international finance sites).
+        // Old code: &s[..max] panics when max lands inside a multi-byte char.
+        let content = "\u{4f60}\u{597d}\u{4e16}\u{754c}!"; // "你好世界!" = 13 bytes
+        // Truncate at byte 7 — lands inside the 3rd Chinese char (bytes 6..9).
+        // safe_truncate_str walks back to byte 6, returning "你好".
+        let truncated = safe_truncate_str(content, 7);
+        assert_eq!(truncated, "\u{4f60}\u{597d}");
+        assert!(truncated.len() <= 7);
+    }
+
+    #[test]
+    fn test_truncate_emoji_no_panic() {
+        let content = "\u{1f4b0}\u{1f4c8}\u{1f4b9}"; // 💰📈💹 = 12 bytes
+        // Truncate at byte 5 — lands inside the 2nd emoji (bytes 4..8).
+        let truncated = safe_truncate_str(content, 5);
+        assert_eq!(truncated, "\u{1f4b0}"); // 4 bytes
+    }
 
     #[test]
     fn test_ssrf_blocks_localhost() {
